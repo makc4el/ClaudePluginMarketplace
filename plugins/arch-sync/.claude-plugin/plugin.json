@@ -1,0 +1,9 @@
+{
+  "name": "arch-sync",
+  "version": "1.0.0",
+  "description": "Multi-repo system architecture visualizer. Reads CLAUDE.md and INTEGRATION.md from sibling repos and generates a unified ARCHITECTURE.md from each repo's perspective.",
+  "author": {
+    "name": "Max Odarchenko"
+  },
+  "keywords": ["architecture", "multi-repo", "system-design", "integration", "documentation"]
+}

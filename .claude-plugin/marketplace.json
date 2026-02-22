@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "local-plugins",
+  "description": "Max's personal Claude Code plugin marketplace",
+  "owner": {
+    "name": "Max Odarchenko"
+  },
+  "plugins": [
+    {
+      "name": "arch-sync",
+      "description": "Multi-repo system architecture visualizer. Reads CLAUDE.md and INTEGRATION.md from sibling repos and generates a unified ARCHITECTURE.md from each repo's perspective.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Max Odarchenko"
+      },
+      "source": "./plugins/arch-sync",
+      "category": "documentation"
+    }
+  ]
+}
