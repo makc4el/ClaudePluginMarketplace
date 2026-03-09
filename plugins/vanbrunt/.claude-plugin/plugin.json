@@ -1,0 +1,9 @@
+{
+  "name": "vanbrunt",
+  "version": "1.1.0",
+  "description": "Vanbrunt project release utilities. Automates the master sync git workflow: creates a dated branch from staging reset to master, commits, and pushes.",
+  "author": {
+    "name": "Max Odarchenko"
+  },
+  "keywords": ["git", "release", "vanbrunt", "master-sync", "workflow"]
+}

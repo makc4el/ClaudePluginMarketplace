@@ -7,6 +7,16 @@
   },
   "plugins": [
     {
+      "name": "figma-responsive",
+      "description": "Generate responsive React/Next.js components from multiple Figma frames. Accepts desktop + mobile (+ optional tablet) links and produces a unified component with Tailwind breakpoints, cva variants, shared hooks, and the full design-system file set.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Max Odarchenko"
+      },
+      "source": "./plugins/figma-responsive",
+      "category": "design"
+    },
+    {
       "name": "arch-sync",
       "description": "Multi-repo system architecture visualizer. Reads CLAUDE.md and INTEGRATION.md from sibling repos and generates a unified ARCHITECTURE.md from each repo's perspective.",
       "version": "1.0.0",
@@ -15,6 +25,16 @@
       },
       "source": "./plugins/arch-sync",
       "category": "documentation"
+    },
+    {
+      "name": "vanbrunt",
+      "description": "Vanbrunt project release utilities. Automates the master sync git workflow: creates a dated branch from staging reset to master, commits, and pushes.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Max Odarchenko"
+      },
+      "source": "./plugins/vanbrunt",
+      "category": "development"
     }
   ]
 }
