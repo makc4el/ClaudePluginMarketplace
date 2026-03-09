@@ -1,0 +1,9 @@
+{
+  "name": "figma-responsive",
+  "version": "0.1.0",
+  "description": "Generate responsive React/Next.js components from multiple Figma frames. Accepts desktop + mobile (+ optional tablet) Figma links and produces a single unified component with Tailwind breakpoints, shared hooks, and full design-system file structure.",
+  "author": {
+    "name": "Max Odarchenko"
+  },
+  "keywords": ["figma", "responsive", "design", "react", "nextjs", "tailwind", "breakpoints"]
+}
