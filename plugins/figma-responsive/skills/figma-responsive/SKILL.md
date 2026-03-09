@@ -37,13 +37,20 @@ Parse each Figma URL to extract `fileKey` and `nodeId`:
 - The `node-id` parameter uses URL encoding — decode `%3A` → `:` and `%2C` → `,`
 - `nodeId` format is typically `123:456`
 
-Call the Figma MCP tool for each frame (one call per URL). Common tool names: `get_figma_data`, `figma_get_node`, or check available MCP tools via the tool list. Pass `fileKey` and `nodeId` as separate parameters.
+Call the Figma MCP tool for each frame (one call per URL). Preferred tool: `get_design_context` with params `{ fileKey, nodeId }` — it returns code, screenshot, and metadata in one call. Fallback tools: `get_figma_data`, `figma_get_node`. Pass `fileKey` and `nodeId` as separate parameters.
+
+**Code Connect fallback:** If `get_design_context` returns a "Code Connect mappings missing" error or incomplete data, immediately retry with `disableCodeConnect: true`. Do not report this as an error to the user — just retry silently.
 
 Collect the returned design data for each frame. Note what each frame contains: layout structure, component instances, text, images, interactive elements (forms, buttons, inputs).
 
 ### Multi-frame state detection
 
-When more than one URL is provided for a single breakpoint, the frames represent different **visual states** of the same component. After fetching all frames for that breakpoint:
+When more than one URL is provided for a single breakpoint, **first verify the frames contain different content** before treating them as states:
+
+- Same content at different frame widths → **not states**. They represent the same design at different viewport sizes. Use the wider frame as your reference and discard the narrower one.
+- Different visible elements, text, or interactive controls → genuine UI states. Proceed below.
+
+After confirming the frames differ:
 
 1. **Name the states** using Figma frame names as the primary signal (e.g. "Modal / Open" → `open`, "Toggle – Active" → `active`). If names are ambiguous, diff the frames visually and name based on what changes (overlay visible, icon rotated, content expanded).
 2. **Build a state map** listing each state name, its source frame, and the visual differences from the default state.
@@ -261,7 +268,14 @@ Frames used: desktop ✅ (N)  mobile ✅ (N)  [tablet ✅ (N)]
 [States detected: open | closed   → cva variants in each view, shared hook]
 ```
 
+## Common Pitfalls
+
+- **App Router test routes miss CSS**: App Router pages do not inherit CSS from `src/pages/_app.js`. Any new route under `src/app/` needs a `layout.tsx` that imports the project's CSS entry point (e.g. `import 'styles/tailwind.css'`) and applies font CSS variables. Without this, all styles will be absent.
+- **SCSS-scoped component styles**: Some components have SCSS that scopes all rules under a parent class (e.g. `.homepage .button { ... }`). Always check for SCSS files alongside any third-party component. If scoping is present, ensure the wrapper element carries that parent class.
+- **Italic child elements**: When headlines use `<em>` for italic spans and the italic font is a separate font-face variant, use `*:italic` (not `*:not-italic`) on the parent to activate the italic font correctly.
+
 ## Additional Resources
 
+- **Figma MCP Server setup**: https://developers.figma.com/docs/figma-mcp-server/
 - **`references/vanbrunt-conventions.md`** — Tailwind design tokens, cva patterns, RSC rules, TypeScript conventions specific to the vanbrunt project
 - **`references/responsive-patterns.md`** — Breakpoint switching patterns, mobile-first structure, tablet handling, shared logic decision tree

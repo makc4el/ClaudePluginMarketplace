@@ -76,11 +76,11 @@ Get today's date in YYYYMMDD format:
 date +%Y%m%d
 ```
 
-Try branch name `modarchenko/master_sync_<DATE>_n1`. Check if it already exists locally or on remote:
+Try branch name `master_sync_<DATE>_n1`. Check if it already exists locally or on remote:
 
 ```bash
-git branch --list "modarchenko/master_sync_<DATE>_n1"
-git ls-remote --heads origin "modarchenko/master_sync_<DATE>_n1"
+git branch --list "master_sync_<DATE>_n1"
+git ls-remote --heads origin "master_sync_<DATE>_n1"
 ```
 
 If the branch already exists (locally or remotely), increment the suffix: try `_n2`, then `_n3`, etc., until you find one that does not exist. Use the first available name.

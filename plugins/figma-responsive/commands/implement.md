@@ -31,15 +31,23 @@ For each provided URL (across all breakpoints), extract `fileKey` and `nodeId`:
 3. Node ID format is typically `123:456`
 
 Call the Figma MCP tool for each frame separately. Try these tool names in order until one works:
+- `get_design_context` with params `{ fileKey, nodeId }` (preferred — returns code, screenshot, and metadata)
 - `get_figma_data` with params `{ fileKey, nodeId }`
 - `figma_get_node` with params `{ file_key, node_id }`
 - Check the available MCP tools list if neither works
+
+**Code Connect fallback:** If `get_design_context` returns a "Code Connect mappings missing" error or incomplete data, immediately retry the same call with `disableCodeConnect: true`. This bypasses Code Connect lookups and returns raw design data directly.
 
 If the `--name` flag was not provided, use the Figma frame name from the first desktop frame response as the component name (converted to PascalCase). Strip special characters and spaces.
 
 ### State Detection (when multiple URLs per breakpoint)
 
-When more than one URL is provided for a breakpoint, compare the fetched frames to identify component states:
+When more than one URL is provided for a breakpoint, **first verify the frames actually differ in content** before treating them as states:
+
+- If both frames contain the same text, components, and layout but at different frame widths → they are **not states**. They represent the same design at different viewport sizes. Treat them as a single frame for this breakpoint and use the wider one as your reference.
+- If the frames differ in visible elements, text, or interactive controls → they are genuine UI states. Proceed with state detection below.
+
+To compare frames:
 
 1. **Use Figma frame names as primary signal** — names like "Modal / Open", "Toggle – Active", "Card – Collapsed" directly map to state names. Convert them to camelCase variant names (e.g. `open`, `closed`, `active`, `default`).
 2. **Fall back to visual diff** — if frame names are generic, identify which elements appear/disappear or change between frames (e.g. an overlay div, an icon rotation, expanded content area) and name the states accordingly.
@@ -146,7 +154,8 @@ Frames used: desktop ✅ (N frames)  mobile ✅ (N frames)  [tablet ✅ (N frame
 
 ## Error Handling
 
-- **Figma MCP tool not found** → tell the user which MCP tools were tried and ask them to verify the Figma MCP server is running (`claude mcp list`)
+- **Figma MCP tool not found** → tell the user which MCP tools were tried and ask them to verify the Figma MCP server is running. Setup guide: https://developers.figma.com/docs/figma-mcp-server/
+- **Code Connect error** → retry `get_design_context` with `disableCodeConnect: true`; do not stop or report failure to the user
 - **Invalid Figma URL** → show what was parsed and ask user to paste the full link from the Figma app
 - **Component name conflicts** (directory already exists) → ask: "A component named `<X>` already exists at `<path>`. Overwrite, use a different name, or cancel?"
 - **Missing project files** (no `tailwind.config.js`) → proceed with sensible defaults but note: "Could not detect project conventions — using standard Next.js/Tailwind patterns"
@@ -156,4 +165,6 @@ Frames used: desktop ✅ (N frames)  mobile ✅ (N frames)  [tablet ✅ (N frame
 - The Figma link must come from the Figma desktop app or browser. Right-click a frame → "Copy link to selection" to get the exact node URL
 - Use `--name` when the Figma frame name is generic (e.g., "Frame 1")
 - For page-level layouts, prefer placing in `src/feature/<page-name>/` rather than `src/design-system/`
+- **App Router test routes**: When creating a test page in `src/app/`, always add a `layout.tsx` that imports the project's CSS entry point (e.g. `import 'styles/tailwind.css'`) and sets font CSS variables. App Router routes do not inherit CSS from `src/pages/_app.js`.
+- **Third-party component SCSS scoping**: If a component has SCSS that scopes all rules to a parent class (e.g. `.homepage .button`), ensure the wrapping `<section>` carries that parent class — otherwise the component will render completely unstyled.
 - Run `/figma-responsive:info` to see all available options

@@ -1,6 +1,30 @@
 # Claude Marketplace
 
-Max's personal Claude Code plugin marketplace.
+A personal Claude Code plugin marketplace.
+
+## Setup
+
+Register this repo as a local marketplace once, then install any plugin from it:
+
+```bash
+# 1. Add the marketplace (run once, absolute path required)
+claude plugin marketplace add /path/to/claude-marketplace
+
+# 2. Install a plugin
+claude plugin install <plugin-name>@local-plugins
+```
+
+To verify it was added:
+
+```bash
+claude plugin marketplace list
+```
+
+To update all plugins after pulling new changes:
+
+```bash
+claude plugin marketplace update local-plugins
+```
 
 ## Plugins
 

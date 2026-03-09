@@ -13,7 +13,7 @@ When implementing Figma designs for desktop and mobile, the second viewport alwa
 
 ## Prerequisites
 
-- Figma MCP server running locally (`claude mcp list` to verify)
+- **Figma MCP server** running locally — see [Figma MCP Server setup guide](https://developers.figma.com/docs/figma-mcp-server/) for installation instructions. Run `claude mcp list` to verify it's active.
 - Next.js project with Tailwind CSS and `cva` installed
 - Figma links from the Figma desktop or web app ("Copy link to selection")
 
