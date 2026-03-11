@@ -31,6 +31,7 @@ claude plugin marketplace update local-plugins
 | Plugin | Description |
 |--------|-------------|
 | `arch-sync` | Multi-repo system architecture visualizer |
+| `supabase-schema` | Auto-generates SUPABASE_SCHEMA.md on session start — tables, columns, types, FK/PK, RPC functions |
 
 ## Adding a New Plugin
 

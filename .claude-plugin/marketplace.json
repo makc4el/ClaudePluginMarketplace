@@ -27,6 +27,16 @@
       "category": "documentation"
     },
     {
+      "name": "supabase-schema",
+      "description": "Extracts the full Supabase database schema (tables, columns, types, FK/PK, RPC functions) into SUPABASE_SCHEMA.md on every session start. Zero dependencies — pure Node.js. Works with any Supabase project.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Max Odarchenko"
+      },
+      "source": "./plugins/supabase-schema",
+      "category": "database"
+    },
+    {
       "name": "vanbrunt",
       "description": "Vanbrunt project release utilities. Automates the master sync git workflow: creates a dated branch from staging reset to master, commits, and pushes.",
       "version": "1.1.0",

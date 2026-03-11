@@ -1,0 +1,21 @@
+{
+  "name": "supabase-schema",
+  "version": "1.0.0",
+  "description": "Extracts the full Supabase database schema (all tables, columns, types, FK/PK relationships, and RPC functions) into SUPABASE_SCHEMA.md. Runs automatically on session start so Claude always has accurate schema context for planning and execution.",
+  "author": {
+    "name": "Max Odarchenko"
+  },
+  "keywords": ["supabase", "database", "schema", "postgres", "documentation", "context"],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/extract-schema.js\""
+          }
+        ]
+      }
+    ]
+  }
+}

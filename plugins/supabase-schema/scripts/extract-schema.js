@@ -1,0 +1,238 @@
+#!/usr/bin/env node
+/**
+ * extract-schema.js — Supabase Schema Extractor
+ *
+ * Fetches all table definitions and RPC functions from a Supabase project
+ * via its REST/OpenAPI endpoint and writes a clean SUPABASE_SCHEMA.md file.
+ *
+ * PORTABILITY: Works in any Node.js environment (v14+). No npm packages required.
+ *
+ * ── Credential resolution order ──────────────────────────────────────────────
+ *  1. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY environment variables
+ *  2. .env file found by walking up from cwd (stops at filesystem root)
+ *  3. .env file in common backend subdirectories:
+ *     backend/, server/, api/, supabase/, context-sync/, app/
+ *
+ * ── Output path resolution order ─────────────────────────────────────────────
+ *  1. SUPABASE_SCHEMA_OUTPUT env var (absolute or relative to cwd)
+ *  2. SUPABASE_SCHEMA_DIR env var + /SUPABASE_SCHEMA.md
+ *  3. <project-root>/SUPABASE_SCHEMA.md   (where project-root = dir of found .env)
+ *  4. <cwd>/SUPABASE_SCHEMA.md            (fallback)
+ *
+ * ── Usage ─────────────────────────────────────────────────────────────────────
+ *  node extract-schema.js
+ *  SUPABASE_URL=https://... SUPABASE_SERVICE_ROLE_KEY=... node extract-schema.js
+ *  SUPABASE_SCHEMA_OUTPUT=./docs/schema.md node extract-schema.js
+ */
+
+'use strict';
+
+const fs   = require('fs');
+const path = require('path');
+const https = require('https');
+const http  = require('http');
+
+// ── .env parser (handles CRLF, quotes, comments) ─────────────────────────────
+
+function parseEnvFile(filePath) {
+  const env = {};
+  if (!fs.existsSync(filePath)) return env;
+  for (const raw of fs.readFileSync(filePath, 'utf8').split('\n')) {
+    const line = raw.replace(/\r$/, '').trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq < 1) continue;
+    const key = line.slice(0, eq).trim();
+    const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+    env[key] = val;
+  }
+  return env;
+}
+
+// ── Credential + env-file discovery ──────────────────────────────────────────
+
+function findEnvFile() {
+  // 1. Walk up from cwd looking for .env
+  let dir = process.cwd();
+  while (true) {
+    const candidate = path.join(dir, '.env');
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;  // filesystem root
+    dir = parent;
+  }
+
+  // 2. Common backend subdirectories relative to cwd
+  const subdirs = ['backend', 'server', 'api', 'supabase', 'context-sync', 'app'];
+  for (const sub of subdirs) {
+    const candidate = path.join(process.cwd(), sub, '.env');
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function loadCredentials() {
+  // Prefer explicit env vars
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return {
+      url:    process.env.SUPABASE_URL.replace(/\/$/, ''),
+      key:    process.env.SUPABASE_SERVICE_ROLE_KEY,
+      source: 'environment variables',
+      envDir: null,
+    };
+  }
+
+  // Fall back to .env file
+  const envPath = process.env.SUPABASE_ENV_FILE || findEnvFile();
+  if (!envPath) return null;
+
+  const env = parseEnvFile(envPath);
+  const url  = env.SUPABASE_URL;
+  const key  = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+
+  return {
+    url:    url.replace(/\/$/, ''),
+    key,
+    source: envPath,
+    envDir: path.dirname(envPath),
+  };
+}
+
+// ── Output path resolution ────────────────────────────────────────────────────
+
+function resolveOutputPath(envDir) {
+  if (process.env.SUPABASE_SCHEMA_OUTPUT) {
+    return path.resolve(process.cwd(), process.env.SUPABASE_SCHEMA_OUTPUT);
+  }
+  if (process.env.SUPABASE_SCHEMA_DIR) {
+    return path.join(path.resolve(process.cwd(), process.env.SUPABASE_SCHEMA_DIR), 'SUPABASE_SCHEMA.md');
+  }
+  if (envDir) {
+    // Write next to the .env file's parent (project root)
+    return path.join(envDir, 'SUPABASE_SCHEMA.md');
+  }
+  return path.join(process.cwd(), 'SUPABASE_SCHEMA.md');
+}
+
+// ── HTTP fetch (no external deps) ────────────────────────────────────────────
+
+function fetchUrl(url, headers) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    const req = lib.get(url, { headers }, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timed out')); });
+  });
+}
+
+// ── Schema → Markdown ─────────────────────────────────────────────────────────
+
+function schemaToMarkdown(definitions, rpcPaths, supabaseUrl) {
+  const date   = new Date().toISOString().split('T')[0];
+  const tables = Object.entries(definitions)
+    .filter(([, def]) => def.properties)
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  let md = `# Supabase Schema\n\n`;
+  md += `> Auto-generated by the \`supabase-schema\` plugin. Do not edit manually.\n`;
+  md += `> Last updated: ${date}\n\n`;
+  md += `**Project:** ${supabaseUrl}\n`;
+  md += `**Tables:** ${tables.length}  |  **RPC functions:** ${rpcPaths.length}\n\n`;
+  md += `---\n\n`;
+  md += `## Tables\n\n`;
+
+  for (const [tableName, def] of tables) {
+    const required = new Set(def.required || []);
+    md += `### \`${tableName}\`\n\n`;
+    md += `| Column | Type | Req | Default | Notes |\n`;
+    md += `|--------|------|:---:|---------|-------|\n`;
+
+    for (const [col, colDef] of Object.entries(def.properties)) {
+      const type    = colDef.format || colDef.type || '—';
+      const isReq   = required.has(col) ? '✅' : '';
+      const dflt    = colDef.default !== undefined ? `\`${colDef.default}\`` : '';
+      const desc    = colDef.description || '';
+      let notes = '';
+      if (desc.includes('Primary Key')) notes = '🔑 PK';
+      const fkMatch = desc.match(/Foreign Key to `([^`]+)`/);
+      if (fkMatch) notes += (notes ? '  ' : '') + `FK → \`${fkMatch[1]}\``;
+
+      md += `| \`${col}\` | \`${type}\` | ${isReq} | ${dflt} | ${notes} |\n`;
+    }
+    md += `\n`;
+  }
+
+  if (rpcPaths.length > 0) {
+    md += `---\n\n## RPC Functions\n\n`;
+    md += `| Function | Notes |\n`;
+    md += `|----------|-------|\n`;
+    for (const rpc of [...rpcPaths].sort()) {
+      const isMatch = rpc.startsWith('match_') ? '🔍 vector search' : '';
+      const isVault = rpc.includes('vault') ? '🔒 vault' : '';
+      md += `| \`${rpc}\` | ${isMatch || isVault} |\n`;
+    }
+    md += `\n`;
+  }
+
+  return md;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+async function main() {
+  const creds = loadCredentials();
+
+  if (!creds) {
+    console.error([
+      '[supabase-schema] Could not find Supabase credentials.',
+      '',
+      'Provide one of:',
+      '  1. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables',
+      '  2. A .env file anywhere in the directory tree above cwd',
+      '  3. A .env file in backend/, server/, api/, supabase/, context-sync/, or app/',
+      '  4. SUPABASE_ENV_FILE=/path/to/.env node extract-schema.js',
+    ].join('\n'));
+    process.exit(1);
+  }
+
+  console.log(`[supabase-schema] Credentials from: ${creds.source}`);
+  console.log(`[supabase-schema] Fetching schema from ${creds.url}`);
+
+  const raw = await fetchUrl(
+    `${creds.url}/rest/v1/?apikey=${creds.key}`,
+    { Authorization: `Bearer ${creds.key}`, apikey: creds.key }
+  );
+
+  let swagger;
+  try {
+    swagger = JSON.parse(raw);
+  } catch {
+    console.error('[supabase-schema] Failed to parse response. Is SUPABASE_URL correct?');
+    process.exit(1);
+  }
+
+  const definitions = swagger.definitions || {};
+  const rpcPaths    = Object.keys(swagger.paths || {})
+    .filter(p => p.startsWith('/rpc/'))
+    .map(p => p.slice(5));
+
+  const tableCount = Object.values(definitions).filter(d => d.properties).length;
+  console.log(`[supabase-schema] Found ${tableCount} tables, ${rpcPaths.length} RPC functions`);
+
+  const md         = schemaToMarkdown(definitions, rpcPaths, creds.url);
+  const outputPath = resolveOutputPath(creds.envDir);
+
+  fs.writeFileSync(outputPath, md, 'utf8');
+  console.log(`[supabase-schema] Written → ${outputPath}`);
+}
+
+main().catch(err => {
+  console.error('[supabase-schema] Error:', err.message);
+  process.exit(1);
+});
